@@ -147,6 +147,8 @@ body{
 .day-cell.future .d{opacity:.4}
 .grid-footer{margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .grid-footer .hint{font-size:12px;color:var(--text-dim)}
+.grid-footer .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 
 /* шкалы справа */
 .scales{display:flex;flex-direction:column;gap:16px}
@@ -260,9 +262,13 @@ function load(){
   try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {categories:[], selected:null}; }
   catch(e){ return {categories:[], selected:null}; }
 }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); syncJarvis(); }
+function syncJarvis(){
+  try{ fetch('http://127.0.0.1:8123/goals',{method:'POST',body:JSON.stringify(state)}).catch(()=>{}); }catch(e){}
+}
 
 let state = load();
+syncJarvis();
 
 /* ===== даты ===== */
 function toISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -370,7 +376,10 @@ function renderCatCard(c){
         '</div>'+
         '<div class="grid-footer">'+
           '<span class="hint">Клик по квадратику — отметить день</span>'+
-          '<button class="btn btn-close-cycle" id="btnClose" '+((canClose&&cycle>0)?'':'disabled')+'>Закрыть цикл →</button>'+
+          '<div class="actions">'+
+            '<button class="btn btn-ghost" id="btnRestart" '+((c.cycleStart===today)?'disabled':'')+'>↻ Начать с сегодня</button>'+
+            '<button class="btn btn-close-cycle" id="btnClose" '+((canClose&&cycle>0)?'':'disabled')+'>Закрыть цикл →</button>'+
+          '</div>'+
         '</div>'+
       '</div>'+
       '<div class="scales">'+
@@ -403,6 +412,14 @@ function renderCatCard(c){
       c.cycleStart=(fromISO(addDaysISO(c.cycleStart,28))>new Date())
         ? addDaysISO(c.cycleStart,28)
         : todayISO();
+      save(); render();
+    };
+  }
+  const btnRestart=document.getElementById('btnRestart');
+  if(!btnRestart.disabled){
+    btnRestart.onclick=()=>{
+      if(!confirm('Начать цикл с сегодняшнего дня? Неделя 1 начнётся с сегодня, счётчик циклов не изменится. Отмеченные дни сохранятся в накоплении.')) return;
+      c.cycleStart=todayISO();
       save(); render();
     };
   }
